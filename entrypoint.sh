@@ -99,5 +99,18 @@ if [[ "${PA_DEBUG:-0}" = "1" ]]; then
   echo "================"
 fi
 
+# PARTISANS: the Teams web client renders meeting audio into this null sink
+# very quietly (~-49 dBFS measured), far below the level the VAD expects.
+# Raise the sink and its monitor so captured speech lands in a normal range,
+# which helps both the silence gate and transcription accuracy.
+PA_CAPTURE_VOLUME="${PA_CAPTURE_VOLUME:-200%}"
+for s in $(pactl list short sinks | awk '{print $2}'); do
+  pactl set-sink-volume "$s" "$PA_CAPTURE_VOLUME" 2>/dev/null || true
+done
+for s in $(pactl list short sources | awk '{print $2}'); do
+  pactl set-source-volume "$s" "$PA_CAPTURE_VOLUME" 2>/dev/null || true
+done
+echo "[entrypoint] capture volume set to $PA_CAPTURE_VOLUME"
+
 echo "[entrypoint] PulseAudio ready. Exec: $*"
 exec "$@"

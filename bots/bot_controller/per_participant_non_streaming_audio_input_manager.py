@@ -3,10 +3,18 @@ import queue
 import time
 from datetime import datetime, timedelta
 
+import os
+
 import numpy as np
 import webrtcvad
 
 logger = logging.getLogger(__name__)
+
+# PARTISANS: was hardcoded at 0.01. Our first real Teams meeting arrived with
+# speech at RMS 0.00342 against silence at 0.00144, so every chunk failed the
+# gate and 29 of 30 seconds were discarded as silence. Configurable so the
+# gate can sit between the two rather than above both.
+RMS_SILENCE_THRESHOLD = float(os.getenv("RMS_SILENCE_THRESHOLD", "0.01"))
 
 
 def calculate_normalized_rms(audio_bytes):
@@ -95,7 +103,7 @@ class PerParticipantNonStreamingAudioInputManager:
         if rms_value == 0:
             self.diagnostic_info["total_chunks_marked_as_silent_due_to_rms_being_zero"] += 1
             return True
-        if rms_value < 0.01:
+        if rms_value < RMS_SILENCE_THRESHOLD:
             self.diagnostic_info["total_chunks_marked_as_silent_due_to_rms_being_small"] += 1
             return True
         if not self.is_speech(chunk_bytes):
