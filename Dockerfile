@@ -9,6 +9,16 @@ WORKDIR $cwd
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# LOCAL PATCH (PARTISANS): our network has a transparent HTTP proxy that
+# serves zero-byte bodies for some archive.ubuntu.com paths (reproducible
+# across independent mirrors; HTTPS is unaffected). Install ca-certificates
+# over HTTP, then switch apt to HTTPS for everything after.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && sed -i 's|http://archive.ubuntu.com|https://archive.ubuntu.com|g; s|http://security.ubuntu.com|https://security.ubuntu.com|g' /etc/apt/sources.list \
+    && apt-get update
+
+
 #  Install Dependencies
 RUN apt-get update  \
     && apt-get install -y \
