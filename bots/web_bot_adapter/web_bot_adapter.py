@@ -233,8 +233,9 @@ class WebBotAdapter(BotAdapter):
             # Convert the float32 audio data to numpy array
             audio_data = np.frombuffer(message[4:], dtype=np.float32)
 
-            # Convert float32 to PCM 16-bit by multiplying by 32768.0
-            audio_data = (audio_data * 32768.0).astype(np.int16)
+            # Convert float32 to PCM 16-bit. Clipped first: a sample past
+            # full scale would otherwise wrap round to the opposite sign.
+            audio_data = np.clip(audio_data * 32768.0, -32768, 32767).astype(np.int16)
 
             # Only mark last_audio_message_processed_time if the audio data has at least one non-zero value
             if np.any(audio_data):

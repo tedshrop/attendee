@@ -174,7 +174,7 @@ const handleVideoTrackForRealTimePerParticipantVideo = async ({ track, streams }
         if (this.audioContext && this.destination) {
             const mediaStream = new MediaStream([track]);
             const source = this.audioContext.createMediaStreamSource(mediaStream);
-            source.connect(this.destination);
+            source.connect(this.mixBus);
             this.sourceNodes.push(source);
             this.seenTrackIds.add(track.id);
             if (this.seenTrackIds.size > 1) {
@@ -194,6 +194,23 @@ const handleVideoTrackForRealTimePerParticipantVideo = async ({ track, streams }
             return;
         this.audioContext = new AudioContext({ sampleRate: 48000 });
         this.destination = this.audioContext.createMediaStreamDestination();
+
+        // Teams delivers the meeting audio as several tracks, and adding them
+        // together at full volume overshoots: three real recordings measured
+        // 4-8% of samples pinned at full scale and speech at -3 dBFS, against
+        // 0% and -21 dBFS for Zoom. Every track goes through one limiter on
+        // its way to the destination so the sum is held under full scale.
+        // Quiet audio passes untouched apart from the node's fixed make-up
+        // gain, so the silence checks further on see no less than before.
+        this.mixBus = this.audioContext.createGain();
+        this.limiter = this.audioContext.createDynamicsCompressor();
+        this.limiter.threshold.value = -12;
+        this.limiter.knee.value = 6;
+        this.limiter.ratio.value = 20;
+        this.limiter.attack.value = 0.002;
+        this.limiter.release.value = 0.2;
+        this.mixBus.connect(this.limiter);
+        this.limiter.connect(this.destination);
 
         this.audioTracksToBeAdded.forEach(track => this.addAudioTrack(track));
 
