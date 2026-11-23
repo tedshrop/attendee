@@ -833,13 +833,16 @@ class BotController:
         if self.get_recording_transcription_provider() == TranscriptionProviders.SARVAM:
             return 1920000  # 30 seconds of audio at 32kHz
         else:
-            return 19200000  # 19.2 MB / 2 bytes per sample / 32,000 samples per second = 300 seconds of continuous audio
+            # 300 seconds of continuous audio by default (64,000 bytes a second).
+            # UTTERANCE_MAX_SECONDS shortens it, so that someone talking without
+            # a pause still shows up in a live transcript before they finish.
+            return int(float(os.getenv("UTTERANCE_MAX_SECONDS", "300")) * 64000)
 
     def non_streaming_audio_silence_duration_limit(self):
         if self.get_recording_transcription_provider() == TranscriptionProviders.SARVAM:
             return 1  # seconds
         else:
-            return 3  # seconds
+            return float(os.getenv("UTTERANCE_SILENCE_SECONDS", "3"))  # seconds
 
     def run(self):
         if self.run_called:
